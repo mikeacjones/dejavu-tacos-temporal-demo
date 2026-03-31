@@ -102,19 +102,17 @@ async def create_order(
     if config.settings.mode == ArchitectureMode.TRADITIONAL:
         background_tasks.add_task(process_order_traditional, order)
     else:
-        # Start Temporal workflow
+        # Start Temporal workflow (by string name to avoid importing the workflow package)
         client = await get_temporal_client()
-        from dejavu_workflows.order_workflow import TASK_QUEUE, OrderWorkflow
-
         await client.start_workflow(
-            OrderWorkflow.run,
+            "OrderWorkflow",
             {
                 "order_id": order_id,
                 "items": [item.model_dump() for item in order_request.items],
                 "total": total,
             },
             id=f"order-{order_id}",
-            task_queue=TASK_QUEUE,
+            task_queue="dejavu-tacos",
         )
 
     return {"order_id": order_id, "status": "accepted", "total": total}
@@ -179,12 +177,10 @@ async def mark_order_ready(order_id: str):
     config.store_orders[order_id]["status"] = "ready"
 
     if config.settings.mode == ArchitectureMode.TEMPORAL:
-        # Send signal to the Temporal workflow
+        # Send signal to the Temporal workflow (by string name)
         client = await get_temporal_client()
-        from dejavu_workflows.order_workflow import OrderWorkflow
-
         handle = client.get_workflow_handle(f"order-{order_id}")
-        await handle.signal(OrderWorkflow.order_ready)
+        await handle.signal("order_ready")
 
     # Emit SSE event
     await emit_event(
