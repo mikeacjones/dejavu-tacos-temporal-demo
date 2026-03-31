@@ -140,26 +140,28 @@ else
     # ━━━ tmux mode ━━━
     tmux kill-session -t "$SESSION" 2>/dev/null || true
 
-    tmux new-session -d -s "$SESSION" -n "demo" -x 200 -y 50
+    # Create session with first pane: Temporal Server
+    tmux new-session -d -s "$SESSION" -n "demo"
+    tmux send-keys -t "${SESSION}:demo.0" \
+      "cd $ROOT_DIR && echo '🌮 Temporal Server' && temporal server start-dev --db-filename $ROOT_DIR/temporal.db --log-level warn" Enter
 
-    # Pane 0: Temporal Server
-    tmux send-keys -t "$SESSION" "cd $ROOT_DIR && echo '🌮 Temporal Server' && temporal server start-dev --db-filename $ROOT_DIR/temporal.db --log-level warn" Enter
+    # Pane 1 (right of 0): Backend
+    tmux split-window -h -t "${SESSION}:demo.0"
+    tmux send-keys -t "${SESSION}:demo.1" \
+      "cd $ROOT_DIR && sleep 2 && echo '🌮 Backend (API)' && uv run --package dejavu-tacos-backend server" Enter
 
-    # Split right: Pane 1: Backend
-    tmux split-window -h -t "$SESSION"
-    tmux send-keys -t "$SESSION" "cd $ROOT_DIR && sleep 2 && echo '🌮 Backend (API)' && uv run --package dejavu-tacos-backend server" Enter
+    # Pane 2 (below 0): Worker
+    tmux split-window -v -t "${SESSION}:demo.0"
+    tmux send-keys -t "${SESSION}:demo.2" \
+      "cd $ROOT_DIR && sleep 3 && echo '🌮 Worker ($WORKER_LABEL)' && $WORKER_CMD" Enter
 
-    # Split Pane 0 down: Pane 2: Worker
-    tmux select-pane -t "$SESSION:0.0"
-    tmux split-window -v -t "$SESSION"
-    tmux send-keys -t "$SESSION" "cd $ROOT_DIR && sleep 3 && echo '🌮 Worker ($WORKER_LABEL)' && $WORKER_CMD" Enter
+    # Pane 3 (below 1): Frontend
+    tmux split-window -v -t "${SESSION}:demo.1"
+    tmux send-keys -t "${SESSION}:demo.3" \
+      "cd $ROOT_DIR/frontend && sleep 4 && echo '🌮 Frontend' && npm run dev -- --open" Enter
 
-    # Split Pane 1 down: Pane 3: Frontend
-    tmux select-pane -t "$SESSION:0.2"
-    tmux split-window -v -t "$SESSION"
-    tmux send-keys -t "$SESSION" "cd $ROOT_DIR/frontend && sleep 4 && echo '🌮 Frontend' && npm run dev -- --open" Enter
-
-    tmux select-layout -t "$SESSION" tiled
+    # Even out the layout
+    tmux select-layout -t "${SESSION}:demo" tiled
 
     echo ""
     echo "======================================"
@@ -174,7 +176,12 @@ else
     echo "  Ctrl+C in worker pane to demo recovery"
     echo "======================================"
 
-    tmux attach -t "$SESSION"
+    # If already inside tmux, switch; otherwise attach
+    if [ -n "$TMUX" ]; then
+      tmux switch-client -t "$SESSION"
+    else
+      tmux attach -t "$SESSION"
+    fi
 
   else
     # ━━━ background processes (logs to files) ━━━
