@@ -41,7 +41,7 @@ const STAGES = [
   },
 ]
 
-export function TraditionalArchDiagram({ events, finalStatus }: Props) {
+export function TraditionalArchDiagram(_props: Props) {
   const [stage, setStage] = useState(0)
 
   const next = useCallback(() => setStage((s) => Math.min(s + 1, STAGES.length - 1)), [])
@@ -64,7 +64,6 @@ export function TraditionalArchDiagram({ events, finalStatus }: Props) {
   // Grid coordinates for clean alignment
   // Center column: x=260, Left: x=130, Right: x=390
   const CX = 260 // center x
-  const LX = 140 // left column
   const RX = 380 // right column
 
   return (

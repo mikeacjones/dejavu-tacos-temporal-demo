@@ -8,6 +8,19 @@ Toggle between **Traditional mode** (direct service calls, no recovery) and **Te
 
 ## Quick Start
 
+### Option A: Docker
+
+**Prerequisites:** [Temporal CLI](https://docs.temporal.io/cli), Docker
+
+```bash
+temporal server start-dev &
+docker compose up --build
+```
+
+Open http://localhost:5173.
+
+### Option B: Local
+
 **Prerequisites:** [Temporal CLI](https://docs.temporal.io/cli), [uv](https://docs.astral.sh/uv/), [Node.js](https://nodejs.org/), [tmux](https://github.com/tmux/tmux)
 
 ```bash
@@ -16,12 +29,13 @@ Toggle between **Traditional mode** (direct service calls, no recovery) and **Te
 ./scripts/start.sh go        # Go worker (coming soon)
 ```
 
-This launches a tmux session with four panes — Temporal server, backend API, worker, and frontend:
+This launches a tmux session with four panes — Temporal server, backend API, worker, and frontend. The worker runs in its own pane so you can kill it (`Ctrl+C`) to demo Temporal's recovery — restart it and watch the workflow resume exactly where it left off.
+
+### Endpoints
+
 - **App:** http://localhost:5173
 - **API:** http://localhost:8000
 - **Temporal UI:** http://localhost:8233
-
-The worker runs in its own pane so you can kill it (`Ctrl+C`) to demo Temporal's recovery — restart it and watch the workflow resume exactly where it left off.
 
 ## The Demo
 

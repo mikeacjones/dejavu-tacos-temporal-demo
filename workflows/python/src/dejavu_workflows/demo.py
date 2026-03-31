@@ -15,7 +15,10 @@ from dejavu_workflows.worker import run_worker
 
 
 async def _run_combined() -> None:
-    client = await Client.connect("localhost:7233")
+    import os
+
+    addr = os.environ.get("TEMPORAL_ADDRESS", "localhost:7233")
+    client = await Client.connect(addr)
 
     # Start the Temporal worker in the background
     worker_task = asyncio.create_task(run_worker(client))

@@ -21,7 +21,10 @@ from dejavu_workflows.order_workflow import TASK_QUEUE, OrderWorkflow
 async def run_worker(client: Client | None = None) -> None:
     """Start the Temporal worker. Accepts an optional pre-connected client."""
     if client is None:
-        client = await Client.connect("localhost:7233")
+        import os
+
+        addr = os.environ.get("TEMPORAL_ADDRESS", "localhost:7233")
+        client = await Client.connect(addr)
 
     worker = Worker(
         client,

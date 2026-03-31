@@ -44,7 +44,7 @@ const PHASES = [
 function getPhaseStatus(
   matchSteps: string[],
   events: OrderEvent[],
-  finalStatus: string | null = null
+  _finalStatus: string | null = null
 ): StepStatus {
   const relevant = events.filter((e) => matchSteps.includes(e.step))
   if (relevant.length === 0) return 'pending'

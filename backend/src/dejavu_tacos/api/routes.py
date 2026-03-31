@@ -38,9 +38,12 @@ _temporal_client = None
 async def get_temporal_client():
     global _temporal_client
     if _temporal_client is None:
+        import os
+
         from temporalio.client import Client
 
-        _temporal_client = await Client.connect("localhost:7233")
+        addr = os.environ.get("TEMPORAL_ADDRESS", "localhost:7233")
+        _temporal_client = await Client.connect(addr)
     return _temporal_client
 
 
