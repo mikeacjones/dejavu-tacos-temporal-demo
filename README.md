@@ -8,34 +8,22 @@ Toggle between **Traditional mode** (direct service calls, no recovery) and **Te
 
 ## Quick Start
 
-### Option A: Docker
-
-**Prerequisites:** [Temporal CLI](https://docs.temporal.io/cli), Docker
-
-```bash
-temporal server start-dev &
-docker compose up --build
-```
-
-Open http://localhost:5173.
-
-### Option B: Local
-
-**Prerequisites:** [Temporal CLI](https://docs.temporal.io/cli), [uv](https://docs.astral.sh/uv/), [Node.js](https://nodejs.org/) (optional: [tmux](https://github.com/tmux/tmux) for split-pane mode)
+**Prerequisites:** [Temporal CLI](https://docs.temporal.io/cli) + either Docker or ([uv](https://docs.astral.sh/uv/) + [Node.js](https://nodejs.org/))
 
 ```bash
 ./scripts/start.sh           # Python worker (default)
 ./scripts/start.sh java      # Java worker (coming soon)
-./scripts/start.sh go        # Go worker (coming soon)
 ```
 
-This launches a tmux session with four panes — Temporal server, backend API, worker, and frontend. The worker runs in its own pane so you can kill it (`Ctrl+C`) to demo Temporal's recovery — restart it and watch the workflow resume exactly where it left off.
+The script auto-detects your environment:
 
-### Endpoints
+| Has Docker? | Has tmux? | What happens |
+|---|---|---|
+| Yes | — | Temporal CLI on host, backend/worker/frontend in containers |
+| No | Yes | 4-pane tmux layout, kill worker pane to demo recovery |
+| No | No | Background processes, Ctrl+C stops everything |
 
-- **App:** http://localhost:5173
-- **API:** http://localhost:8000
-- **Temporal UI:** http://localhost:8233
+Open http://localhost:5173 once it's running. Temporal UI at http://localhost:8233.
 
 ## The Demo
 
