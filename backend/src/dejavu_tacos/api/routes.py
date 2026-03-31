@@ -195,7 +195,7 @@ async def mark_order_ready(order_id: str):
 
 
 # ---------------------------------------------------------------------------
-# Internal: event push (used by external worker process)
+# Internal: used by external worker process
 # ---------------------------------------------------------------------------
 
 
@@ -204,13 +204,25 @@ async def push_event(event: OrderEvent):
     """Accept SSE events from an external worker process."""
     queue = config.event_queues.get(event.order_id)
     if queue is None:
-        # Create queue on demand if order exists
         if event.order_id in config.orders:
             config.event_queues[event.order_id] = asyncio.Queue()
             queue = config.event_queues[event.order_id]
         else:
             return {"status": "ignored", "reason": "unknown order"}
     await queue.put(event.model_dump(mode="json"))
+    return {"status": "accepted"}
+
+
+@app.get("/api/internal/should-fail/{step}")
+async def check_should_fail(step: str):
+    """Check if a step should fail based on current failure scenario."""
+    return {"should_fail": config.should_fail(step)}
+
+
+@app.post("/api/internal/store-orders/{order_id}")
+async def register_store_order(order_id: str, payload: dict):
+    """Register an order as received by the store (called by submit_to_store activity)."""
+    config.store_orders[order_id] = payload
     return {"status": "accepted"}
 
 
