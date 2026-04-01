@@ -14,11 +14,41 @@ function getStepStatus(step: string, events: OrderEvent[]): string | null {
 }
 
 function highlightSyntax(text: string, lang: LanguageDef): string {
-  let result = text
+  // Tokenize: find all matches with their positions, apply non-overlapping spans
+  const tokens: { start: number; end: number; className: string }[] = []
+
   for (const rule of lang.highlighting) {
-    result = result.replace(rule.pattern, (match) => `<span class="${rule.className}">${match}</span>`)
+    // Reset regex state for global patterns
+    const re = new RegExp(rule.pattern.source, rule.pattern.flags)
+    let match: RegExpExecArray | null
+    while ((match = re.exec(text)) !== null) {
+      const start = match.index
+      const end = start + match[0].length
+      // Only add if it doesn't overlap with existing tokens
+      const overlaps = tokens.some((t) => start < t.end && end > t.start)
+      if (!overlaps) {
+        tokens.push({ start, end, className: rule.className })
+      }
+    }
   }
+
+  // Sort by position
+  tokens.sort((a, b) => a.start - b.start)
+
+  // Build result string
+  let result = ''
+  let cursor = 0
+  for (const token of tokens) {
+    result += escapeHtml(text.slice(cursor, token.start))
+    result += `<span class="${token.className}">${escapeHtml(text.slice(token.start, token.end))}</span>`
+    cursor = token.end
+  }
+  result += escapeHtml(text.slice(cursor))
   return result
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
 export function TemporalCodeView({ events, finalStatus, language }: Props) {
