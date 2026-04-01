@@ -68,7 +68,7 @@ cleanup() {
   echo ""
   echo "Shutting down..."
   if [ "$MODE" = "docker" ]; then
-    docker compose down 2>/dev/null || true
+    docker compose --profile "$LANG" down --remove-orphans 2>/dev/null || true
   fi
   for pid in "${PIDS[@]}"; do
     kill "$pid" 2>/dev/null || true
@@ -84,9 +84,14 @@ echo "  🌮 Déjà Vu Tacos Demo Launcher"
 echo "======================================"
 echo ""
 
+# ── Clean up stale containers from previous runs ──
+if [ "$MODE" = "docker" ]; then
+  docker compose --profile "$LANG" down --remove-orphans 2>/dev/null || true
+fi
+
 # ── Start Temporal dev server (always on host) ──
 echo "Starting Temporal dev server..."
-temporal server start-dev --db-filename "$ROOT_DIR/temporal.db" --log-level warn &
+temporal server start-dev --log-level warn &
 PIDS+=($!)
 
 echo "Waiting for Temporal..."
@@ -101,20 +106,8 @@ done
 if [ "$MODE" = "docker" ]; then
 # ═══════════════════════════════════════════
 
-  # Stop the default Python worker if using a different language
-  DOCKER_PROFILE=""
-  WORKER_SERVICE="worker-python"
-  if [ "$LANG" != "python" ]; then
-    DOCKER_PROFILE="--profile $LANG"
-    WORKER_SERVICE="worker-$LANG"
-  fi
-
   echo "Starting Docker containers ($WORKER_LABEL worker)..."
-  docker compose $DOCKER_PROFILE up --build -d
-  # If using a non-default worker, stop the default Python one
-  if [ "$LANG" != "python" ]; then
-    docker compose stop worker-python 2>/dev/null || true
-  fi
+  DEJAVU_WORKER_LANGUAGE="$LANG" docker compose --profile "$LANG" up --build -d
 
   echo ""
   echo "======================================"
@@ -127,8 +120,8 @@ if [ "$MODE" = "docker" ]; then
   echo ""
   echo "  Ctrl+C to stop everything"
   echo ""
-  echo "  docker compose logs -f $WORKER_SERVICE"
-  echo "  docker compose restart $WORKER_SERVICE"
+  echo "  docker compose logs -f worker-$LANG"
+  echo "  docker compose restart worker-$LANG"
   echo "======================================"
 
   # Wait quietly
@@ -143,7 +136,7 @@ else
   (cd frontend && npm install --silent 2>/dev/null) || (cd frontend && npm install)
 
   echo "Starting backend..."
-  uv run --package dejavu-tacos-backend server &
+  DEJAVU_WORKER_LANGUAGE="$LANG" uv run --package dejavu-tacos-backend server &
   PIDS+=($!)
 
   echo "Waiting for backend..."

@@ -12,7 +12,7 @@ Toggle between **Traditional mode** (direct service calls, no recovery) and **Te
 
 ```bash
 ./scripts/start.sh           # Python worker (default)
-./scripts/start.sh java      # Java worker (coming soon)
+./scripts/start.sh go        # Go worker
 ```
 
 The script auto-detects your environment:
@@ -28,7 +28,7 @@ Open http://localhost:5173 once it's running. Temporal UI at http://localhost:82
 
 ### 1. Place an order (Temporal mode)
 
-Browse the menu, add items, and check out. The behind-the-scenes panel shows each workflow activity executing. The code panel on the right shows the actual workflow code lighting up in real time.
+Browse the menu, add items, and check out. The behind-the-scenes panel shows each workflow activity executing. The code panel on the right shows the actual workflow code — in the language of the running worker — lighting up in real time.
 
 ![Order complete with code view](docs/screenshots/temporal-complete.png)
 
@@ -66,6 +66,7 @@ Click the gear icon to configure:
 - **Architecture Mode**: Traditional (fragile) vs Temporal (durable)
 - **Failure Scenario**: Store connectivity (default), payment error, random chaos, or none
 - **Presentation Mode**: Simple (high-level) vs Detailed (retries, payloads, error messages)
+- **Worker Language**: Python, Go (the code view updates to match)
 
 ## Architecture
 
@@ -74,34 +75,46 @@ Browser (React + Vite + nginx)
     ↓ REST + SSE
 FastAPI Backend (Python)
     ├── Mock Services (payment, store, cart)
-    ├── Internal API (failure state, SSE event push, store orders)
+    ├── Internal API (failure state, SSE events, store orders)
     └── Temporal client (starts workflows, sends signals)
            ↕
 Temporal Dev Server (CLI, on host)
            ↕
-Worker (Python — swappable per language)
+Worker (Python or Go — swappable)
     ├── OrderWorkflow (saga compensation, signals, queries)
-    └── Activities → Mock Services → Backend internal API
+    └── Activities → Backend internal API
 ```
 
-The worker runs as a separate process from the backend. Mock services call the backend's internal API for failure state and store order registration, so the worker can be killed and restarted without losing sync — demonstrating Temporal's recovery.
+The worker runs as a separate process from the backend. Activities call the backend's internal API for failure state and store order registration, so the worker can be killed and restarted without losing sync — demonstrating Temporal's durable execution.
+
+## Multi-Language Support
+
+The same workflow is implemented in multiple languages. The backend is decoupled from the worker — it starts workflows and sends signals by string name, so any language's worker can be swapped in.
+
+| Language | Status | Run with |
+|---|---|---|
+| Python | Available | `./scripts/start.sh` or `./scripts/start.sh python` |
+| Go | Available | `./scripts/start.sh go` |
+| Java | Planned | — |
+| .NET | Planned | — |
+
+The code view in the UI auto-detects the active worker language. To add a new language, implement the workflow and activities, then add a code definition in `frontend/src/data/workflowCode.ts`.
 
 ## Project Structure
 
 ```
-├── frontend/            # React + Vite + TypeScript + Tailwind
-├── backend/             # FastAPI + mock services (always Python)
+├── frontend/             # React + Vite + TypeScript + Tailwind
+│   └── src/data/         # Language-specific code definitions for the code viewer
+├── backend/              # FastAPI + mock services (always Python)
 ├── workflows/
-│   ├── python/          # Temporal workflows & activities
-│   ├── java/            # Future
-│   ├── go/              # Future
-│   └── dotnet/          # Future
-├── docker/              # Dockerfiles + nginx config
-├── docker-compose.yml   # Container orchestration
-└── scripts/start.sh     # One-command launcher
+│   ├── python/           # Python worker — OrderWorkflow + activities
+│   ├── go/               # Go worker — same workflow, same task queue
+│   ├── java/             # Future
+│   └── dotnet/           # Future
+├── docker/               # Dockerfiles + nginx config
+├── docker-compose.yml    # Container orchestration (one profile per language)
+└── scripts/start.sh      # One-command launcher
 ```
-
-The workflow implementations are separated by language so additional SDK flavors (Java, Go, .NET) can be added without changing the backend or frontend.
 
 ## Development
 
@@ -110,12 +123,13 @@ The workflow implementations are separated by language so additional SDK flavors
 uv sync && cd frontend && npm install
 
 # Run individual services
-temporal server start-dev --db-filename temporal.db                              # Temporal on :7233
+temporal server start-dev                                                        # Temporal on :7233
 uv run --package dejavu-tacos-backend server                                     # FastAPI on :8000
-DEJAVU_BACKEND_URL=http://localhost:8000 uv run --package dejavu-workflows worker # Worker
+DEJAVU_BACKEND_URL=http://localhost:8000 uv run --package dejavu-workflows worker # Python worker
+cd workflows/go && DEJAVU_BACKEND_URL=http://localhost:8000 go run ./cmd/worker/ # Go worker
 cd frontend && npm run dev                                                       # Vite on :5173
 
-# Or combined backend + worker in one process (simpler, no env var needed)
+# Or combined backend + Python worker in one process (simpler, no env var needed)
 uv run --package dejavu-workflows demo
 ```
 

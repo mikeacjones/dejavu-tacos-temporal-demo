@@ -1,8 +1,8 @@
 # Temporal dev server runs locally via CLI (not containerized).
 # Start it first: temporal server start-dev
 #
-# Then: docker compose up --build
-# Or:   docker compose --profile go up --build  (Go worker instead of Python)
+# Then: docker compose --profile python up --build
+# Or:   docker compose --profile go up --build
 
 services:
   # ── Backend API (FastAPI) ──
@@ -14,10 +14,17 @@ services:
       - "8000:8000"
     environment:
       - TEMPORAL_ADDRESS=host.docker.internal:7233
+      - DEJAVU_WORKER_LANGUAGE=${DEJAVU_WORKER_LANGUAGE:-python}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
 
-  # ── Worker (Python — default, no profile needed) ──
+  # ── Worker (Python) ──
   worker-python:
     build:
       context: .
@@ -28,7 +35,10 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    profiles:
+      - python
 
   # ── Worker (Go) ──
   worker-go:
@@ -41,7 +51,8 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     profiles:
       - go
 
@@ -68,4 +79,5 @@ services:
     ports:
       - "5173:5173"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
